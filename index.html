@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D-Würfel im Browser</title>
+    <style>
+        canvas {
+            display: block;
+            margin: 0 auto;
+            background: white;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="cubeCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById("cubeCanvas");
+        const ctx = canvas.getContext("2d");
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const WIDTH = canvas.width;
+        const HEIGHT = canvas.height;
+
+        // Würfelpunkte (3D)
+        const cubePoints = [
+            [-1, -1, -1],
+            [-1, -1,  1],
+            [-1,  1, -1],
+            [-1,  1,  1],
+            [ 1, -1, -1],
+            [ 1, -1,  1],
+            [ 1,  1, -1],
+            [ 1,  1,  1]
+        ];
+
+        let angleX = 0;
+        let angleY = 0;
+        const distance = 5;
+
+        function project(point) {
+            const [x, y, z] = point;
+            const zAdjusted = z + distance;
+            const factor = 300 / zAdjusted;
+            const x2D = WIDTH / 2 + x * factor;
+            const y2D = HEIGHT / 2 - y * factor;
+            return [x2D, y2D, zAdjusted];
+        }
+
+        function rotateX(point, angle) {
+            const [x, y, z] = point;
+            const yNew = y * Math.cos(angle) - z * Math.sin(angle);
+            const zNew = y * Math.sin(angle) + z * Math.cos(angle);
+            return [x, yNew, zNew];
+        }
+
+        function rotateY(point, angle) {
+            const [x, y, z] = point;
+            const xNew = z * Math.sin(angle) + x * Math.cos(angle);
+            const zNew = z * Math.cos(angle) - x * Math.sin(angle);
+            return [xNew, y, zNew];
+        }
+
+        function drawDynamicLine(p1, p2, steps) {
+            const [x1, y1, z1] = p1;
+            const [x2, y2, z2] = p2;
+
+            for (let i = 0; i <= steps; i++) {
+                const t = i / steps;
+                const x = x1 + t * (x2 - x1);
+                const y = y1 + t * (y2 - y1);
+                const z = z1 + t * (z2 - z1);
+
+                const [projX, projY, projZ] = project([x, y, z]);
+
+                // Stiftdicke basierend auf der Tiefe
+                const lineWidth = Math.max(1, 10 / projZ);
+                ctx.lineWidth = lineWidth;
+
+                if (i === 0) {
+                    ctx.beginPath();
+                    ctx.moveTo(projX, projY);
+                } else {
+                    ctx.lineTo(projX, projY);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(projX, projY);
+                }
+            }
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+            // Punkte rotieren und projizieren
+            const transformedPoints = cubePoints.map(point => {
+                const rotatedX = rotateX(point, angleX);
+                return rotateY(rotatedX, angleY);
+            }).map(project);
+
+            // Dynamische Linien zeichnen
+            for (let i = 0; i < transformedPoints.length; i++) {
+                for (let j = 0; j < transformedPoints.length; j++) {
+                    if (i !== j) {
+                        const distance3D = Math.hypot(
+                            cubePoints[i][0] - cubePoints[j][0],
+                            cubePoints[i][1] - cubePoints[j][1],
+                            cubePoints[i][2] - cubePoints[j][2]
+                        );
+
+                        if (distance3D < 2) {
+                            drawDynamicLine(cubePoints[i], cubePoints[j], 20);
+                        }
+                    }
+                }
+            }
+
+            angleX += 0.01;
+            angleY += 0.01;
+
+            requestAnimationFrame(render);
+        }
+
+        render();
+    </script>
+</body>
+</html>
